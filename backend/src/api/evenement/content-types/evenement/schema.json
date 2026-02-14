@@ -1,0 +1,30 @@
+{
+  "kind": "collectionType",
+  "collectionName": "evenements",
+  "info": {
+    "singularName": "evenement",
+    "pluralName": "evenements",
+    "displayName": "evenement"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "nom": {
+      "type": "string"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "salle": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::salle.salle",
+      "mappedBy": "evenement"
+    },
+    "horaire": {
+      "type": "time"
+    }
+  }
+}

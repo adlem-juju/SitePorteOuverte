@@ -1,0 +1,17 @@
+1. La méthode la plus simple : L'export SQL
+C'est la méthode la plus fiable. Elle crée un fichier .sql sur ton ordinateur qui contient toute ta structure et tes textes.
+
+Lance cette commande dans ton terminal :
+
+Bash
+docker exec pwa_db pg_dump -U strapi strapi_db > sauvegarde_collinniere.sql
+pwa_db : C'est le nom de ton conteneur de base de données.
+
+sauvegarde_collinniere.sql : C'est le fichier qui apparaîtra sur ton PC. Garde-le précieusement. Si tu perds tes données, on pourra les réinjecter en une seconde.
+
+2. Sauvegarder le "Volume" Docker
+Puisque tes données sont dans le volume nommé postgres_data, tu peux demander à Docker de créer une archive compressée de ce dossier invisible.
+
+Bash
+docker run --rm -v postgres_data:/volume -v $(pwd):/backup alpine tar cvf /backup/backup_volume_db.tar /volume
+Cette commande crée un fichier backup_volume_db.tar sur ton PC qui contient l'intégralité du "coffre" Docker.

@@ -1,0 +1,23 @@
+{
+  "kind": "singleType",
+  "collectionName": "typesdecours",
+  "info": {
+    "singularName": "typedecours",
+    "pluralName": "typesdecours",
+    "displayName": "typedecours"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "typologie": {
+      "type": "string"
+    },
+    "matiere_enseignees": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::matiereenseignee.matiereenseignee"
+    }
+  }
+}

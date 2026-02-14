@@ -1,0 +1,23 @@
+{
+  "kind": "singleType",
+  "collectionName": "typesdesalle",
+  "info": {
+    "singularName": "typedesalle",
+    "pluralName": "typesdesalle",
+    "displayName": "typedesalle"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "Type": {
+      "type": "string"
+    },
+    "salles": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::salle.salle"
+    }
+  }
+}

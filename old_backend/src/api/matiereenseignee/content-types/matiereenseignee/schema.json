@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "matieresenseignees",
+  "info": {
+    "singularName": "matiereenseignee",
+    "pluralName": "matieresenseignees",
+    "displayName": "MatiereEnseignée"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "NomMatiere": {
+      "type": "string"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "filieres": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::filiere.filiere",
+      "mappedBy": "matiere_enseignees"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "filieres",
+  "info": {
+    "singularName": "filiere",
+    "pluralName": "filieres",
+    "displayName": "filiere"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "nomdelafiliere": {
+      "type": "string"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "matiere_enseignees": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::matiereenseignee.matiereenseignee",
+      "inversedBy": "filieres"
+    }
+  }
+}

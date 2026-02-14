@@ -1,0 +1,28 @@
+{
+  "kind": "singleType",
+  "collectionName": "nomslycee",
+  "info": {
+    "singularName": "nomlycee",
+    "pluralName": "nomslycee",
+    "displayName": "nomlycee"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "nom": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  }
+}
