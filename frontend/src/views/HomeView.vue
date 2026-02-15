@@ -1,15 +1,5 @@
 <template>
   <main class="page">
-    <header class="topbar">
-      <div class="brand">
-        <img class="logo" src="/logo.png" alt="Logo du lycée" />
-        <div class="brand-text">
-          <h1>Lycée de la Collinière</h1>
-          <p class="subtitle">Portes ouvertes</p>
-        </div>
-      </div>
-    </header>
-
     <section class="hero card">
       <img class="hero-img" :src="heroImg" alt="Photo du campus" />
       <div class="hero-body">

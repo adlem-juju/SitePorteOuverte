@@ -1,120 +1,117 @@
 <template>
   <main class="page">
-    <header class="topbar">
-      <router-link class="back" to="/">← Accueil</router-link>
-      <div class="titles">
-        <h1>Événements</h1>
-        <p class="subtitle">Programme de la journée</p>
-      </div>
-    </header>
+    
 
-    <section class="section">
-      <div class="segmented card" role="tablist" aria-label="Trier les événements">
-        <button class="seg" :class="{ active: sortBy === 'time' }" @click="sortBy = 'time'">Heure</button>
-        <button class="seg" :class="{ active: sortBy === 'building' }" @click="sortBy = 'building'">Bâtiment</button>
-      </div>
+    <section class="filters">
+      <button class="chip" :class="{active: mode==='heure'}" @click="mode='heure'">Heure</button>
+      <button class="chip" :class="{active: mode==='batiment'}" @click="mode='batiment'">Bâtiment</button>
+    </section>
 
-      <div v-if="loading" class="state card">Chargement des événements…</div>
+    <div v-if="loading" class="state">Chargement des événements…</div>
+    <div v-else-if="error" class="state error">{{ error }}</div>
 
-      <!-- TRI PAR HEURE -->
-      <div v-else-if="sortBy === 'time'" class="timeline">
-        <section v-for="(evts, time) in groupedByTime" :key="time" class="time-group">
-          <div class="time-chip">{{ time }}</div>
+    <section v-else class="timeline">
+      <template v-for="(group, key) in groupedEvents" :key="key">
+        <div class="group-header">{{ key }}</div>
 
-          <article
-            v-for="e in evts"
-            :key="e.id"
-            class="card event-card"
-            :style="{ background: getLightColor(e.salle?.batiment?.pin_config?.CouleurHexa) }"
+        <article v-for="evt in group" :key="evt.id" class="event card">
+          <div class="event-head">
+            <span class="badge">Événement</span>
+            <span class="time">🕒 {{ evt.horaire || '—' }}</span>
+          </div>
+
+          <div class="title">{{ evt.nom || 'Sans titre' }}</div>
+
+          <div class="location">
+            📍 {{ evt.batiment || 'Sans bâtiment' }}<span v-if="evt.salle"> — {{ evt.salle }}</span>
+          </div>
+
+          <!-- Optionnel : lien carte si tu gères un focus -->
+          <router-link
+            v-if="evt.batiment_id"
+            :to="`/map?focus=${evt.batiment_id}`"
+            class="map-link"
           >
-            <div class="event-head">
-              <h2 class="name">{{ e.nom }}</h2>
-              <div class="pill">À voir</div>
-            </div>
-
-            <p v-if="e.description" class="desc">{{ e.description }}</p>
-
-            <div class="meta">
-              <span>📍 {{ e.salle?.batiment?.NomDuBatiment || 'Bâtiment' }}</span>
-              <span v-if="e.salle?.NumeroSalle">• Salle {{ e.salle?.NumeroSalle }}</span>
-            </div>
-          </article>
-        </section>
-      </div>
-
-      <!-- TRI PAR BATIMENT -->
-      <div v-else class="timeline">
-        <section v-for="(evts, building) in groupedByBuilding" :key="building" class="time-group">
-          <div class="time-chip building-chip">🏢 {{ building }}</div>
-
-          <article v-for="e in evts" :key="e.id" class="card event-card white">
-            <div class="event-head">
-              <h2 class="name">{{ e.nom }}</h2>
-              <div class="pill time">{{ e.horaire }}</div>
-            </div>
-
-            <p v-if="e.description" class="desc">{{ e.description }}</p>
-
-            <div class="meta">
-              <span v-if="e.salle?.NumeroSalle">🚪 Salle {{ e.salle?.NumeroSalle }}</span>
-            </div>
-          </article>
-        </section>
-      </div>
+            Voir sur la carte →
+          </router-link>
+        </article>
+      </template>
     </section>
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
-const events = ref([])
+const rawEvents = ref([])
 const loading = ref(true)
-const sortBy = ref('time')
+const error = ref('')
+const mode = ref('heure')
 
-const getLightColor = (hex) => {
-  if (!hex) return 'var(--card)'
-  const cleanHex = hex.startsWith('#') ? hex : `#${hex}`
-  // Ajoute une opacité douce
-  return `${cleanHex}1A` // ~10%
+/**
+ * Rend compatible Strapi standard (attributes) ET ton format actuel (flatten).
+ */
+const pick = (item) => item?.attributes ? ({ id: item.id, ...item.attributes }) : item
+
+const normalize = (item) => {
+  const e = pick(item) || {}
+  const salleObj = e.salle?.data ? pick(e.salle.data) : e.salle
+  const batObj = salleObj?.batiment?.data ? pick(salleObj.batiment.data) : salleObj?.batiment
+
+  return {
+    id: e.id,
+    nom: e.nom,
+    horaire: e.horaire,
+    description: e.description,
+    salle: salleObj?.NumeroSalle ? `Salle ${salleObj.NumeroSalle}` : (salleObj?.NumeroSalle ?? ''),
+    batiment: batObj?.NomDuBatiment || '',
+    batiment_id: batObj?.id || null
+  }
 }
 
-const groupedByTime = computed(() => {
-  const groups = {}
-  const sorted = [...events.value].sort((a, b) => {
-    return (
-      (a.salle?.batiment?.NomDuBatiment || '').localeCompare(b.salle?.batiment?.NomDuBatiment || '') ||
-      (a.salle?.NumeroSalle || '').localeCompare(b.salle?.NumeroSalle || '') ||
-      (a.nom || '').localeCompare(b.nom || '')
-    )
-  })
-  sorted.forEach((e) => {
-    if (!groups[e.horaire]) groups[e.horaire] = []
-    groups[e.horaire].push(e)
-  })
-  return groups
-})
+const events = computed(() => rawEvents.value.map(normalize))
 
-const groupedByBuilding = computed(() => {
+const groupedEvents = computed(() => {
   const groups = {}
-  const sorted = [...events.value].sort((a, b) => (a.horaire || '').localeCompare(b.horaire || ''))
-  sorted.forEach((e) => {
-    const bName = e.salle?.batiment?.NomDuBatiment || 'Sans bâtiment'
-    if (!groups[bName]) groups[bName] = []
-    groups[bName].push(e)
+  const list = [...events.value].filter(e => e && e.id)
+
+  // tri stable
+  list.sort((a, b) => {
+    if (mode.value === 'heure') {
+      return (a.horaire || '').localeCompare(b.horaire || '') ||
+             (a.batiment || '').localeCompare(b.batiment || '') ||
+             (a.nom || '').localeCompare(b.nom || '')
+    }
+    return (a.batiment || '').localeCompare(b.batiment || '') ||
+           (a.horaire || '').localeCompare(b.horaire || '') ||
+           (a.nom || '').localeCompare(b.nom || '')
   })
+
+  list.forEach(e => {
+    const key = mode.value === 'heure'
+      ? (e.horaire || 'Sans horaire')
+      : (e.batiment || 'Sans bâtiment')
+    ;(groups[key] ||= []).push(e)
+  })
+
   return groups
 })
 
 onMounted(async () => {
+  loading.value = true
+  error.value = ''
   try {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-    const url = `${baseUrl}/api/evenements?populate[salle][populate][batiment][populate]=pin_config`
-    const response = await axios.get(url)
-    events.value = response.data.data || []
-  } catch (err) {
-    console.error('Erreur API:', err)
+    // On garde ton URL d’origine (celle qui marche chez toi)
+    //const url = 'http://localhost:1337/api/evenements?populate[salle][populate][batiment][populate]=pin_config'
+    
+    const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1337'
+    const url = `${API}/api/evenements?populate[salle][populate][batiment][populate]=pin_config`
+    const res = await axios.get(url)
+    rawEvents.value = res.data?.data || []
+  } catch (e) {
+    console.error(e)
+    error.value = "Impossible de charger les événements (API)."
   } finally {
     loading.value = false
   }
@@ -127,78 +124,75 @@ onMounted(async () => {
   background:var(--bg);
   color:var(--text);
   padding:16px;
-  max-width: 980px;
-  margin: 0 auto;
-  font-family: var(--font);
+  max-width:700px;
+  margin:0 auto;
+  font-family:var(--font);
 }
-.topbar{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;}
+
+.topbar{display:flex;gap:12px;margin-bottom:12px;}
 .back{
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--card);
   text-decoration:none;
   color:var(--text);
-  font-weight:800;
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background:var(--card);
+  font-weight:700;
+  white-space:nowrap;
 }
-.titles h1{margin:0;font-size:20px;}
-.subtitle{margin:4px 0 0;color:var(--text-soft);font-size:13px;}
+.titles h1{margin:0;font-size:26px;}
+.titles p{margin:2px 0 0;color:var(--text-soft);}
 
-.section{margin-top:8px;}
-
-.card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:20px;
-  box-shadow: var(--shadow);
-}
-
-.segmented{display:flex;overflow:hidden;}
-.seg{
-  flex:1;height:44px;border:0;background:transparent;
-  font-weight:900;color:var(--text-soft);cursor:pointer;
-}
-.seg.active{background:var(--slate); color:#fff;}
-.seg:focus-visible{outline:3px solid rgba(14,165,233,.35); outline-offset:-3px;}
-
-.state{padding:14px;margin-top:12px;}
-
-.timeline{display:flex;flex-direction:column;gap:14px;margin-top:12px;}
-.time-group{display:flex;flex-direction:column;gap:10px;}
-.time-chip{
-  align-self:flex-start;
-  padding:8px 10px;
+.filters{display:flex;gap:8px;margin-bottom:12px;}
+.chip{
+  padding:8px 12px;
   border-radius:999px;
   border:1px solid var(--border);
-  background:var(--chip-bg);
-  font-weight:900;
-  font-size:13px;
+  background:var(--card);
+  cursor:pointer;
+  font-weight:800;
 }
-.building-chip{background:var(--sky-soft);}
+.chip.active{
+  background:var(--green-soft);
+  border-color:var(--green);
+}
 
-.event-card{padding:14px;}
-.event-card.white{background:var(--card);}
-.event-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;}
-.name{margin:0;font-size:16px;line-height:1.25;}
-.pill{
-  padding:6px 10px;
+.state{padding:12px 0;color:var(--text-soft);font-weight:700;}
+.state.error{color:#b91c1c;}
+
+.timeline{display:flex;flex-direction:column;gap:12px;}
+.group-header{
+  font-weight: 950;
+  color: var(--text);
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--green-soft);
+  border: 1px solid rgba(47,125,50,.25);
+  box-shadow: 0 8px 20px rgba(15,23,42,.04);
+}
+
+
+.card{
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--card);
+  padding:12px;
+  box-shadow:var(--shadow);
+}
+
+.event-head{display:flex;justify-content:space-between;margin-bottom:6px;gap:12px;}
+.badge{
+  background:#e74c3c;
+  color:white;
+  padding:3px 8px;
   border-radius:999px;
   font-size:12px;
   font-weight:900;
-  background:rgba(47,125,50,.10);
-  color:var(--green-dark);
-  border:1px solid rgba(47,125,50,.18);
-  white-space:nowrap;
 }
-.pill.time{
-  background:rgba(14,165,233,.10);
-  color:var(--sky);
-  border:1px solid rgba(14,165,233,.18);
-}
-.desc{margin:8px 0 0;color:var(--text-soft);font-size:14px;}
-.meta{margin-top:10px;color:var(--slate);font-weight:700;font-size:13px;}
-@media (min-width: 720px){
-  .titles h1{font-size:24px;}
-  .timeline{gap:18px;}
-}
+.time{color:var(--text-soft);font-weight:800;}
+.title{font-weight:900;font-size:18px;margin-bottom:6px;}
+.location{color:var(--text-soft);font-size:14px;}
+
+.map-link{display:inline-block;margin-top:8px;font-weight:800;color:var(--sky);}
 </style>

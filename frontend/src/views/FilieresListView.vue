@@ -1,13 +1,6 @@
 <template>
   <main class="page">
-    <header class="topbar">
-      <router-link class="back" to="/">← Accueil</router-link>
-      <div class="titles">
-        <h1>Nos filières</h1>
-        <p class="subtitle">Simple à lire, facile à partager.</p>
-      </div>
-    </header>
-
+    
     <section class="section">
       <div v-if="loading" class="state card">Chargement des filières…</div>
       <div v-else-if="error" class="state card error">
@@ -47,7 +40,7 @@ const error = ref(null)
 
 onMounted(async () => {
   try {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1337'
     const response = await axios.get(`${baseUrl}/api/filieres`)
     filieres.value = response.data.data || []
   } catch (e) {
