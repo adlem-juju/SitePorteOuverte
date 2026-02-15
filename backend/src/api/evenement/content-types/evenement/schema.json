@@ -19,12 +19,17 @@
     },
     "salle": {
       "type": "relation",
-      "relation": "oneToOne",
+      "relation": "manyToOne",
       "target": "api::salle.salle",
-      "mappedBy": "evenement"
+      "inversedBy": "evenements"
     },
     "horaire": {
       "type": "time"
+    },
+    "pin_config": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::pin-config.pin-config"
     }
   }
 }

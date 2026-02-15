@@ -1,0 +1,21 @@
+{
+  "kind": "singleType",
+  "collectionName": "pin_colors",
+  "info": {
+    "singularName": "pin-color",
+    "pluralName": "pin-colors",
+    "displayName": "PinColor"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "CodeHexa": {
+      "type": "string"
+    },
+    "Nom": {
+      "type": "string"
+    }
+  }
+}

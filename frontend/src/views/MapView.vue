@@ -1,216 +1,281 @@
 <template>
-  <div class="map-view">
-    <header class="header">
-      <router-link to="/" class="back-btn">←</router-link>
-      <h1>Géolocalisation</h1>
+  <div class="wrap">
+    <header class="topbar">
+      <router-link class="back" to="/">← Accueil</router-link>
+      <div class="titles">
+        <h1>Carte</h1>
+        <p class="subtitle">Bâtiments & événements</p>
+      </div>
     </header>
 
-    <div id="map" class="map-container"></div>
-     <div class="details-zone" :class="{ 'active': selectedBatiment }">
-        <div v-if="selectedBatiment">
-          <h2>{{ selectedBatiment.NomDuBatiment }}</h2>
-          <p class="bat-desc">{{ selectedBatiment.description }}</p>
-          
-          <hr />
+    <div class="map-shell card">
+      <div class="filters">
+        <label class="filter">
+          <input type="checkbox" v-model="showBatiments" @change="refreshMarkers" />
+          <span class="dot bat"></span>
+          <span>Bâtiments</span>
+        </label>
+        <label class="filter">
+          <input type="checkbox" v-model="showEvenements" @change="refreshMarkers" />
+          <span class="dot evt"></span>
+          <span>Événements</span>
+        </label>
+      </div>
 
-          <h3>Salles dans ce bâtiment :</h3>
-          <ul class="salles-list" v-if="selectedBatiment.salles && selectedBatiment.salles.length > 0">
-            <li v-for="salle in selectedBatiment.salles" :key="salle.id" class="salle-item">
-              <div class="salle-content">
-                <span class="salle-nom">Porte {{ salle.NumeroSalle }}</span>
-                
-                <div v-if="salle.evenement" class="event-box">
-                  <span class="event-badge">Événement</span>
-                  <p class="event-title">{{ salle.evenement.nom }}</p>
-                  <p class="event-time" v-if="salle.evenement.horaire">
-                    🕒 {{ salle.evenement.horaire }}
-                  </p>
-                </div>
+      <div id="map" class="map"></div>
+
+      <section class="sheet" :class="{ active: selectedBatiment }">
+        <div v-if="selectedBatiment" class="sheet-inner">
+          <div class="sheet-head">
+            <h2 class="sheet-title">{{ selectedBatiment.NomDuBatiment }}</h2>
+            <button class="close" type="button" @click="selectedBatiment = null" aria-label="Fermer">✕</button>
+          </div>
+
+          <p class="sheet-desc">{{ selectedBatiment.description || 'Aucune description disponible.' }}</p>
+
+          <div class="divider"></div>
+
+          <h3 class="sheet-sub">Salles & activités</h3>
+
+          <ul v-if="selectedBatiment.salles && selectedBatiment.salles.length > 0" class="rooms">
+            <li v-for="salle in selectedBatiment.salles" :key="salle.id" class="room">
+              <div class="room-head">
+                <span class="room-name">Salle {{ salle.NumeroSalle }}</span>
+              </div>
+
+              <div v-if="salle.evenements && salle.evenements.length > 0" class="room-events">
+                <article v-for="evt in salle.evenements" :key="evt.id" class="evt-card">
+                  <div class="evt-top">
+                    <span class="badge">Événement</span>
+                    <span v-if="evt.horaire" class="evt-time">🕒 {{ evt.horaire }}</span>
+                  </div>
+                  <div class="evt-title">{{ evt.nom }}</div>
+                </article>
               </div>
             </li>
           </ul>
+
           <p v-else class="no-data">Aucune salle répertoriée pour ce bâtiment.</p>
         </div>
-        <p v-else class="placeholder">Cliquez sur un bâtiment sur la carte pour voir les détails.</p>
-      </div> 
+
+        <div v-else class="sheet-empty">
+          Sélectionnez un point sur la carte pour voir les détails.
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, nextTick } from 'vue'
-import axios from 'axios'
+import { onMounted, ref } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
-// CONFIGURATION DES ICONES (Méthode CDN robuste)
-const DefaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-
-// On applique cette icône par défaut à tous les futurs marqueurs
-L.Marker.prototype.options.icon = DefaultIcon;
+import axios from 'axios'
 
 const selectedBatiment = ref(null)
+const allBatiments = ref([])
+const showBatiments = ref(true)
+const showEvenements = ref(true)
+
 let map = null
+let markersLayer = null
+
+const COLOR_DEFAULT_BAT = '#0EA5E9' // Accent (bleu repère)
+const COLOR_DEFAULT_EVT = '#F59E0B' // Orange événement
+
+const formatHexa = (hex) => {
+  if (!hex) return null
+  const cleanHex = String(hex).trim()
+  return cleanHex.startsWith('#') ? cleanHex : `#${cleanHex}`
+}
+
+const createMarker = (lat, lng, color, data) => {
+  return L.circleMarker([lat, lng], {
+    radius: 10,
+    fillColor: color,
+    color: '#ffffff',
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.95
+  }).on('click', () => {
+    selectedBatiment.value = data
+  })
+}
+
+const refreshMarkers = () => {
+  if (!markersLayer || !map) return
+  markersLayer.clearLayers()
+
+  allBatiments.value.forEach((item) => {
+    const data = item.attributes || item
+    const lat = parseFloat(data.Latitude)
+    const lng = parseFloat(data.Longitude)
+    if (isNaN(lat) || isNaN(lng)) return
+
+    const hasEvents = data.salles?.some((s) => s.evenements && s.evenements.length > 0)
+    const customColor = formatHexa(data.pin_config?.CouleurHexa)
+
+    let shouldShow = false
+    let finalColor = '#000000'
+
+    // PRIORITÉ 1 : ÉVÉNEMENT
+    if (showEvenements.value && hasEvents) {
+      shouldShow = true
+      finalColor = COLOR_DEFAULT_EVT
+    }
+    // PRIORITÉ 2 : BÂTIMENT
+    else if (showBatiments.value) {
+      shouldShow = true
+      finalColor = customColor || COLOR_DEFAULT_BAT
+    }
+
+    if (shouldShow) {
+      createMarker(lat, lng, finalColor, data).addTo(markersLayer)
+    }
+  })
+
+  const bounds = markersLayer.getBounds()
+  if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 })
+}
 
 onMounted(async () => {
-  // Initialisation de la carte centrée sur le lycée
-  map = L.map('map').setView([47.248, -1.503], 16);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
+  map = L.map('map').setView([47.247, -1.492], 17)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
+  markersLayer = L.featureGroup().addTo(map)
 
   try {
-  
-     //const response = await axios.get('http://localhost:1337/api/batiments');
-    // On demande à Strapi d'inclure les salles, et pour chaque salle, d'inclure la matière
-// Remplace ta ligne axios.get par celle-ci :
-//const response = await axios.get('http://localhost:1337/api/batiments?populate[salles][populate]=*');
-// Dans onMounted, remplace ton axios.get par celui-ci :
-//const response = await axios.get('http://localhost:1337/api/batiments?populate=salles');
-const response = await axios.get('http://localhost:1337/api/batiments?populate[salles][populate]=evenement');
-
-    // Strapi 5 renvoie souvent les données directement dans data.data
-    const batiments = response.data.data;
-
-    if (batiments && batiments.length > 0) {
-      const markersBounds = [];
-
-      batiments.forEach(item => {
-        const b = item.attributes || item;
-        
-        // Sécurité : Conversion forcée en nombres
-        const lat = parseFloat(b.Latitude);
-        const lng = parseFloat(b.Longitude);
-
-        if (!isNaN(lat) && !isNaN(lng)) {
-          // On crée le marqueur en lui passant explicitement notre icône
-          const marker = L.marker([lat, lng], { icon: DefaultIcon }).addTo(map);
-          markersBounds.push([lat, lng]);
-
-          marker.on('click', () => {
-            selectedBatiment.value = b;
-          });
-        }
-      });
-
-      if (markersBounds.length > 0) {
-        map.fitBounds(markersBounds);
-      }
-    }
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+    const url = `${baseUrl}/api/batiments?populate[salles][populate]=evenements&populate[pin_config]=*`
+    const response = await axios.get(url)
+    allBatiments.value = response.data.data || []
+    refreshMarkers()
   } catch (error) {
-    console.error("Erreur lors de la récupération des bâtiments:", error);
+    console.error('Erreur API:', error)
   }
-  
-  // Juste après ton bloc try/catch dans onMounted
-  nextTick(() => {
-    if (map) {
-      map.invalidateSize();
-    }
-  });
-});
+})
 </script>
 
 <style scoped>
-.map-view {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+.wrap{
+  min-height:100vh;
+  background:var(--bg);
+  color:var(--text);
+  padding:16px;
+  max-width: 980px;
+  margin: 0 auto;
+  font-family: var(--font);
+}
+.topbar{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;}
+.back{
+  text-decoration:none;
+  color:var(--text);
+  font-weight:800;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:var(--card);
+}
+.titles h1{margin:0;font-size:20px;}
+.subtitle{margin:4px 0 0;color:var(--text-soft);font-size:13px;}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow: var(--shadow);
 }
 
-.header {
-  background: #34495e;
-  color: white;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 20px;
+.map-shell{
+  overflow:hidden;
+  position:relative;
+  height: calc(100vh - 120px);
+  min-height: 560px;
 }
 
-.back-btn {
-  color: white;
-  text-decoration: none;
-  font-size: 1.5rem;
+.filters{
+  position:absolute;
+  top:12px; left:12px; right:12px;
+  display:flex; gap:10px; flex-wrap:wrap;
+  z-index: 500;
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(6px);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:10px 10px;
 }
+.filter{display:flex;align-items:center;gap:8px;font-weight:900;font-size:13px;color:var(--slate);}
+.filter input{accent-color: var(--green-dark);}
+.dot{width:10px;height:10px;border-radius:999px;display:inline-block;}
+.dot.bat{background: var(--sky);}
+.dot.evt{background: var(--amber);}
 
-.map-container {
-  flex: 2; /* Prend 2/3 de l'espace */
-  width: 100%;
-  z-index: 1;
+.map{height: 100%; width: 100%;}
+
+.sheet{
+  position:absolute;
+  left:0; right:0; bottom:0;
+  z-index: 600;
+  background: rgba(255,255,255,.96);
+  border-top: 1px solid var(--border);
+  padding: 14px;
+  max-height: 46%;
+  overflow:auto;
 }
-
-.details-zone {
-  flex: 1; /* Prend 1/3 de l'espace */
-  background: white;
-  padding: 20px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-  overflow-y: auto;
-  border-top: 3px solid #3498db;
-  transition: all 0.3s ease;
+.sheet-empty{
+  color: var(--text-soft);
+  font-weight: 700;
+  text-align:center;
+  padding: 10px 0;
 }
-
-.details-zone.active {
-  background-color: #f0f7ff;
-}
-
-.bat-desc { font-style: italic; color: #666; margin-bottom: 15px; }
-
-.salles-list { list-style: none; padding: 0; }
-
-.salle-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.salle-nom { font-weight: bold; color: #2c3e50; }
-
-.matiere-badge {
-  background: #3498db;
-  color: white;
-  padding: 4px 8px;
+.sheet-inner{padding-bottom: 6px;}
+.sheet-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;}
+.sheet-title{margin:0;font-size:16px;line-height:1.2;}
+.close{
+  border:1px solid var(--border);
+  background: var(--card);
   border-radius: 12px;
-  font-size: 0.8rem;
+  height: 36px;
+  width: 36px;
+  cursor:pointer;
 }
+.sheet-desc{margin:8px 0 0;color:var(--text-soft);font-size:14px;}
+.divider{height:1px;background:var(--border);margin:12px 0;}
+.sheet-sub{margin:0 0 10px;font-size:14px;color:var(--slate);}
 
-.event-box {
-  margin-top: 8px;
-  padding: 8px;
-  background-color: #fcf3cf; /* Un jaune léger pour attirer l'oeil */
-  border-left: 4px solid #f1c40f;
-  border-radius: 4px;
+.rooms{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+.room{
+  border:1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--card);
 }
+.room-name{font-weight:900;color:var(--slate);}
 
-.event-badge {
-  font-size: 0.7rem;
+.room-events{margin-top:10px;display:flex;flex-direction:column;gap:10px;}
+.evt-card{
+  background: var(--amber-soft);
+  border:1px solid rgba(245,158,11,.25);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.evt-top{display:flex;justify-content:space-between;gap:10px;align-items:center;}
+.badge{
+  background: var(--amber);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 999px;
   text-transform: uppercase;
-  font-weight: bold;
-  color: #d4ac0d;
+  letter-spacing: .04em;
 }
+.evt-time{font-size:12px;font-weight:900;color:var(--slate);}
+.evt-title{margin-top:6px;font-weight:900;color:#7c2d12;}
+.no-data{color:var(--text-soft);font-style:italic;margin:0;}
 
-.event-title {
-  margin: 4px 0;
-  font-weight: bold;
-  color: #2c3e50;
+@media (min-width: 720px){
+  .titles h1{font-size:24px;}
+  .map-shell{height: calc(100vh - 140px);}
+  .sheet{max-height: 40%;}
 }
-
-.event-time {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  margin: 0;
-}
-.no-data { color: #e74c3c; font-size: 0.9rem; }
-
-h2 { color: #2c3e50; margin-top: 0; }
-.placeholder { color: #7f8c8d; font-style: italic; text-align: center; margin-top: 20px; }
 </style>

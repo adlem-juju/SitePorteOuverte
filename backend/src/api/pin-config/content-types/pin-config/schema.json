@@ -1,0 +1,21 @@
+{
+  "kind": "collectionType",
+  "collectionName": "pin_configs",
+  "info": {
+    "singularName": "pin-config",
+    "pluralName": "pin-configs",
+    "displayName": "PinConfig"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "Nom": {
+      "type": "string"
+    },
+    "CouleurHexa": {
+      "type": "string"
+    }
+  }
+}
