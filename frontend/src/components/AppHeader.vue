@@ -1,258 +1,91 @@
 <template>
   <header class="app-header">
-    <div class="row">
-      <router-link to="/" class="brand" aria-label="Retour à l'accueil">
-        <img class="logo" :src="logoUrl" alt="Logo Lycée de la Collinière" />
+    <div class="header-row">
+      <router-link to="/" class="brand">
+        <div class="logo-circle">LC</div>
+        <div class="brand-text">
+          <span class="title">La Colinière</span>
+        </div>
       </router-link>
 
-      <div class="title-wrap">
-        <div class="title" v-if="title">{{ title }}</div>
-        <div class="subtitle" v-if="subtitle">{{ subtitle }}</div>
-      </div>
+      <nav class="nav-desktop">
+        <router-link to="/" class="nav-link">Accueil</router-link>
+        <router-link to="/map" class="nav-link">Carte</router-link>
+        <router-link to="/evenements" class="nav-link">Événements</router-link>
+        <router-link to="/filieres" class="nav-link">Formations</router-link>
+      </nav>
 
-      <button class="burger" type="button" @click="open = true" aria-label="Ouvrir le menu">
-        ☰
+      <button class="burger-btn" @click="menuOpen = !menuOpen" aria-label="Menu">
+        <span v-if="!menuOpen">☰</span>
+        <span v-else>✕</span>
       </button>
     </div>
 
-    <!-- Overlay -->
-    <div v-if="open" class="overlay" @click="open = false"></div>
-
-    <!-- Drawer -->
-    <aside v-if="open" class="drawer" role="dialog" aria-modal="true" aria-label="Menu">
-      <div class="drawer-head">
-        <router-link to="/" class="drawer-brand" @click="open = false">
-          <img class="logo" :src="logoUrl" alt="Logo" />
-          <div class="drawer-name">
-            <div class="school">Lycée de la Collinière</div>
-            <div class="small">Portes ouvertes</div>
-          </div>
-        </router-link>
-
-        <button class="close" type="button" @click="open = false" aria-label="Fermer le menu">✕</button>
-      </div>
-
-      <nav class="nav">
-        <router-link to="/" class="nav-item" @click="open=false">
-          <span class="ico">🏠</span> Accueil
-        </router-link>
-
-        <router-link to="/map" class="nav-item" @click="open=false">
-          <span class="ico">📍</span> Carte
-        </router-link>
-
-        <router-link to="/evenements" class="nav-item" @click="open=false">
-          <span class="ico">📅</span> Événements
-        </router-link>
-
-        <router-link to="/filieres" class="nav-item" @click="open=false">
-          <span class="ico">🎓</span> Filières
-        </router-link>
+    <transition name="slide">
+      <nav v-if="menuOpen" class="nav-mobile">
+        <router-link to="/" @click="menuOpen = false">Accueil</router-link>
+        <router-link to="/map" @click="menuOpen = false">Carte</router-link>
+        <router-link to="/evenements" @click="menuOpen = false">Événements</router-link>
+        <router-link to="/filieres" @click="menuOpen = false">Formations</router-link>
       </nav>
-
-      <div class="drawer-foot">
-        <div class="hint">Astuce : utilisez la carte pour vous repérer pendant la visite.</div>
-      </div>
-    </aside>
+    </transition>
   </header>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import logoUrl from '../assets/branding/logo.png'
-
-const props = defineProps({
-  title: { type: String, default: '' },
-  subtitle: { type: String, default: '' }
-})
-
-const open = ref(false)
-const route = useRoute()
-
-// Ferme le menu quand on change de page (sécurité)
-let stop = null
-onMounted(() => {
-  const onKey = (e) => {
-    if (e.key === 'Escape') open.value = false
-  }
-  window.addEventListener('keydown', onKey)
-
-  // fermeture automatique quand la route change
-  stop = () => { open.value = false }
-
-  // Vue Router n’a pas de "watch route" automatique ici -> on utilise un watch simple
-  // (solution minimaliste sans import de watch pour éviter le bruit)
-  const origPushState = history.pushState
-  history.pushState = function () {
-    origPushState.apply(this, arguments)
-    stop && stop()
-  }
-
-  onBeforeUnmount(() => {
-    window.removeEventListener('keydown', onKey)
-    history.pushState = origPushState
-  })
-})
+import { ref } from 'vue'
+const menuOpen = ref(false)
 </script>
 
 <style scoped>
-.app-header{
+.app-header {
+  background: var(--primary-dark);
+  color: white;
   position: sticky;
   top: 0;
-  z-index: 50;
-  background: rgba(245,247,248,.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  z-index: 1000;
+  padding: 10px 16px;
 }
 
-.row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding: 10px 14px;
-  max-width: 980px;
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
-.brand{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  width:44px;
-  height:44px;
-  border-radius: 14px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+/* BRAND */
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: white; }
+.logo-circle { background: var(--accent-gold); color: var(--primary-dark); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+.title { font-weight: 800; font-size: 1.1rem; }
+
+/* NAV DESKTOP */
+.nav-desktop { display: none; gap: 20px; }
+.nav-link { color: white; text-decoration: none; font-weight: 600; font-size: 0.9rem; opacity: 0.8; }
+.nav-link:hover, .router-link-active { opacity: 1; color: var(--accent-gold); }
+
+/* BURGER */
+.burger-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; display: block; }
+
+/* NAV MOBILE */
+.nav-mobile {
+  position: absolute; top: 100%; left: 0; width: 100%;
+  background: var(--primary-dark);
+  display: flex; flex-direction: column;
+  padding: 20px; gap: 15px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.nav-mobile a { color: white; text-decoration: none; font-size: 1.2rem; font-weight: 700; }
+
+/* RESPONSIVE LOGIC */
+@media (min-width: 768px) {
+  .nav-desktop { display: flex; }
+  .burger-btn { display: none; }
+  .nav-mobile { display: none; }
 }
 
-.logo{
-  width:28px;
-  height:28px;
-  object-fit:contain;
-}
-
-.title-wrap{
-  flex:1;
-  min-width:0;
-}
-.title{
-  font-weight: 950;
-  font-size: 16px;
-  line-height: 1.2;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.subtitle{
-  margin-top: 2px;
-  font-size: 13px;
-  color: var(--text-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.burger{
-  width:44px;
-  height:44px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.overlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(2,6,23,.45);
-  z-index: 60;
-}
-
-.drawer{
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: min(86vw, 360px);
-  height: 100vh;
-  background: var(--card);
-  border-left: 1px solid var(--border);
-  box-shadow: 0 20px 80px rgba(0,0,0,.25);
-  z-index: 70;
-  display:flex;
-  flex-direction:column;
-}
-
-.drawer-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding: 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.drawer-brand{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  text-decoration:none;
-  color: inherit;
-}
-.drawer-name .school{
-  font-weight: 950;
-  line-height: 1.1;
-}
-.drawer-name .small{
-  font-size: 13px;
-  color: var(--text-soft);
-  margin-top: 2px;
-}
-
-.close{
-  width:40px;
-  height:40px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: transparent;
-  cursor: pointer;
-  font-weight: 900;
-}
-
-.nav{
-  display:flex;
-  flex-direction:column;
-  padding: 10px;
-  gap: 8px;
-}
-.nav-item{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding: 12px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: #fff;
-  text-decoration:none;
-  color: var(--text);
-  font-weight: 850;
-}
-.nav-item.router-link-active{
-  background: var(--green-soft);
-  border-color: rgba(47,125,50,.35);
-}
-.ico{ width: 22px; text-align:center; }
-
-.drawer-foot{
-  margin-top:auto;
-  padding: 14px;
-  border-top: 1px solid var(--border);
-}
-.hint{
-  font-size: 13px;
-  color: var(--text-soft);
-}
+/* ANIMATION */
+.slide-enter-active, .slide-leave-active { transition: transform 0.3s ease, opacity 0.3s ease; }
+.slide-enter-from, .slide-leave-to { transform: translateY(-10px); opacity: 0; }
 </style>
