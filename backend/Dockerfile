@@ -23,4 +23,4 @@ RUN npm run build
 EXPOSE 1337
 
 # Commande de lancement en mode développement
-CMD ["npm", "run", "develop"]
+CMD ["npm","run","start"]
