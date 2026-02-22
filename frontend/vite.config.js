@@ -4,13 +4,14 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
-    host: '0.0.0.0', // Indispensable pour Docker
-    port: 5173,
+    host: true,                 // écoute sur 0.0.0.0
+    port: 5173,                 // en local OK (Render utilisera --port $PORT via Docker CMD)
+    allowedHosts: true,         // ✅ autorise siteporteouverte-front.onrender.com
     watch: {
-      usePolling: true, // Permet de voir vos modifs en temps réel sur Linux
+      usePolling: true,
     },
     hmr: {
-        clientPort: 5173 // Règle l'erreur de connexion "ws://" vue dans votre console
-    }
-  }
+      clientPort: 443,          // ✅ en https sur Render (évite ws://5173)
+    },
+  },
 })
