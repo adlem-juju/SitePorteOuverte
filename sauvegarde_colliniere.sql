@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict VO3cSqr67pZOO310FvhzKYVk3ctQJsSWyanN4CD0OuWlBglOBVFb19dn3Jf2fAR
+\restrict tKYXyWfPjwh2ZIEXl2i7W5r582O2fEHPJOr8ucbeSeeKWpxtpJyU0Kr8JglYtfu
 
 -- Dumped from database version 15.15
 -- Dumped by pg_dump version 15.15
@@ -3428,6 +3428,7 @@ COPY public.strapi_sessions (id, document_id, user_id, session_id, child_id, dev
 6	gcbt50fuu566lf0r6i01mby3	1	2ee691803d0051d8661ea48631a7d9b6	\N	5468148e-b8bb-4fec-81eb-e80f321d2bb4	admin	2026-02-14 20:54:17.01	2026-03-16 17:50:53.337	active	session	2026-02-14 18:54:17.011	2026-02-14 18:54:17.011	2026-02-14 18:54:17.011	\N	\N	\N
 5	mcfzbci0eo7c82epsm7tln1o	1	c015cad86b878fb152058ddf0a100f1b	2ee691803d0051d8661ea48631a7d9b6	5468148e-b8bb-4fec-81eb-e80f321d2bb4	admin	2026-02-14 20:21:05.771	2026-03-16 17:50:53.337	rotated	session	2026-02-14 18:21:05.771	2026-02-14 18:54:17.017	2026-02-14 18:21:05.771	\N	\N	\N
 7	svsg4k0qifst2x74s80blirx	1	c8363610a99f9da3ae51b05eba1e52f8	\N	5468148e-b8bb-4fec-81eb-e80f321d2bb4	admin	2026-02-15 13:24:48.466	2026-03-17 11:24:48.466	active	session	2026-02-15 11:24:48.466	2026-02-15 11:24:48.466	2026-02-15 11:24:48.466	\N	\N	\N
+8	qjpggz28cw89bn2uaw2ihd64	1	39a15ce704a12da75966eca4ef6ef9a5	\N	5468148e-b8bb-4fec-81eb-e80f321d2bb4	admin	2026-02-15 16:48:25.793	2026-03-17 14:48:25.793	active	session	2026-02-15 14:48:25.793	2026-02-15 14:48:25.793	2026-02-15 14:48:25.793	\N	\N	\N
 \.
 
 
@@ -3903,7 +3904,7 @@ SELECT pg_catalog.setval('public.strapi_releases_id_seq', 1, false);
 -- Name: strapi_sessions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: strapi
 --
 
-SELECT pg_catalog.setval('public.strapi_sessions_id_seq', 7, true);
+SELECT pg_catalog.setval('public.strapi_sessions_id_seq', 8, true);
 
 
 --
@@ -6529,5 +6530,5 @@ ALTER TABLE ONLY public.upload_folders
 -- PostgreSQL database dump complete
 --
 
-\unrestrict VO3cSqr67pZOO310FvhzKYVk3ctQJsSWyanN4CD0OuWlBglOBVFb19dn3Jf2fAR
+\unrestrict tKYXyWfPjwh2ZIEXl2i7W5r582O2fEHPJOr8ucbeSeeKWpxtpJyU0Kr8JglYtfu
 

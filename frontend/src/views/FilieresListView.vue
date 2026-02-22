@@ -1,28 +1,27 @@
 <template>
-  <div class="list-page">
-    <header class="header">
-      <router-link to="/" class="back-btn">← Accueil</router-link>
-      <h1>Nos Formations</h1>
-    </header>
-
-    <div class="container">
-      <div v-if="filieres.length > 0" class="filieres-grid">
-        <div v-for="f in filieres" :key="f.id" class="filiere-card">
-            <div class="card-icon">🎓</div>
-                <h3>{{ f.nomdelafiliere }}</h3>
-                <p>Découvrez les opportunités de la filière {{ f.nom }}</p>
-            
-                <router-link 
-                    :to="{ name: 'filiere-detail', params: { id: f.documentId } }" 
-                    class="view-btn"
-                >
-                Explorer
+  <main class="page-container">
+    <section class="section">
+      <div v-if="loading" class="state ui-card">Chargement des filières…</div>
+      
+      <div v-else class="grid">
+        <article v-for="f in filieres" :key="f.id" class="ui-card filiere-card">
+          <div class="head">
+            <div class="icon-box">🎓</div>
+            <div class="hgroup">
+              <h2 class="name">{{ f.nomdelafiliere || f.nom || 'Filière' }}</h2>
+              <p class="desc">Découvrir la filière et ses projets</p>
+            </div>
+          </div>
+          <router-link
+            :to="{ name: 'filiere-detail', params: { id: f.documentId || f.id } }"
+            class="ui-btn ui-btn-primary"
+          >
+            Explorer
           </router-link>
-        </div>
+        </article>
       </div>
-      <div v-else class="loading">Chargement des filières...</div>
-    </div>
-  </div>
+    </section>
+  </main>
 </template>
 
 <script setup>
@@ -30,25 +29,28 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
 const filieres = ref([])
+const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const response = await axios.get('http://localhost:1337/api/filieres')
-    filieres.value = response.data.data
-  } catch (error) {
-    console.error("Erreur liste :", error)
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1337'
+    const response = await axios.get(`${baseUrl}/api/filieres`)
+    filieres.value = response.data.data || []
+  } finally {
+    loading.value = false
   }
 })
 </script>
 
 <style scoped>
-.list-page { min-height: 100vh; background: #f8fafc; }
-.header { background: #1e3a8a; color: white; padding: 2rem; display: flex; align-items: center; gap: 20px; }
-.back-btn { color: white; text-decoration: none; border: 1px solid white; padding: 5px 15px; border-radius: 20px; }
-.container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
-.filieres-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
-.filiere-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; transition: 0.3s; }
-.filiere-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
-.card-icon { font-size: 3rem; margin-bottom: 15px; }
-.view-btn { display: inline-block; margin-top: 20px; background: #22c55e; color: white; padding: 10px 25px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.filiere-card { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.head { display: flex; gap: 12px; align-items: center; }
+.icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--green-soft); }
+.name { font-size: 18px; font-weight: 900; margin: 0; }
+.state { padding: 20px; text-align: center; }
+
+@media (min-width: 600px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

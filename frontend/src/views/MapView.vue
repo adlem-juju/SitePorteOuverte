@@ -1,216 +1,244 @@
 <template>
-  <div class="map-view">
-    <header class="header">
-      <router-link to="/" class="back-btn">←</router-link>
-      <h1>Géolocalisation</h1>
-    </header>
+  <main class="page-container">
+    <section class="filters">
+      <label class="ui-chip" :class="{ 'active-bat': showBatiments }">
+        <input type="checkbox" v-model="showBatiments" @change="refreshMarkers" class="hidden-input" />
+        <span class="dot dot-bat"></span> Bâtiments
+      </label>
+      <label class="ui-chip" :class="{ 'active-evt': showEvenements }">
+        <input type="checkbox" v-model="showEvenements" @change="refreshMarkers" class="hidden-input" />
+        <span class="dot dot-evt"></span> Événements
+      </label>
+      <span class="hint">Touchez un point pour voir les détails.</span>
+    </section>
 
-    <div id="map" class="map-container"></div>
-     <div class="details-zone" :class="{ 'active': selectedBatiment }">
-        <div v-if="selectedBatiment">
-          <h2>{{ selectedBatiment.NomDuBatiment }}</h2>
-          <p class="bat-desc">{{ selectedBatiment.description }}</p>
-          
-          <hr />
+   <section class="map-wrapper ui-card">
+  <div id="map" class="leaflet-container"></div>
+</section>
 
-          <h3>Salles dans ce bâtiment :</h3>
-          <ul class="salles-list" v-if="selectedBatiment.salles && selectedBatiment.salles.length > 0">
-            <li v-for="salle in selectedBatiment.salles" :key="salle.id" class="salle-item">
-              <div class="salle-content">
-                <span class="salle-nom">Porte {{ salle.NumeroSalle }}</span>
-                
-                <div v-if="salle.evenement" class="event-box">
-                  <span class="event-badge">Événement</span>
-                  <p class="event-title">{{ salle.evenement.nom }}</p>
-                  <p class="event-time" v-if="salle.evenement.horaire">
-                    🕒 {{ salle.evenement.horaire }}
-                  </p>
-                </div>
-              </div>
-            </li>
-          </ul>
-          <p v-else class="no-data">Aucune salle répertoriée pour ce bâtiment.</p>
+    <section class="sheet" :class="{ active: !!selectedBatiment }">
+      <div v-if="selectedBatiment" class="ui-card sheet-inner">
+        <div class="sheet-head">
+          <div class="sheet-title">
+            <h2>{{ selectedBatiment.NomDuBatiment }}</h2>
+            <p class="desc-text">{{ selectedBatiment.description || 'Aucune description.' }}</p>
+          </div>
+          <button class="close-btn" @click="selectedBatiment = null">✕</button>
         </div>
-        <p v-else class="placeholder">Cliquez sur un bâtiment sur la carte pour voir les détails.</p>
-      </div> 
-  </div>
+
+        <div class="divider"></div>
+
+        <h3>Salles & activités</h3>
+        <div v-if="selectedBatiment.salles?.length" class="rooms-list">
+          <details v-for="salle in selectedBatiment.salles" :key="salle.id" class="room-item ui-card">
+            <summary class="room-summary">
+              <span>Salle {{ salle.NumeroSalle }}</span>
+              <span class="ui-badge">{{ salle.evenements?.length || 0 }} évt.</span>
+            </summary>
+            <div class="room-body">
+               <article v-for="evt in salle.evenements" :key="evt.id" class="event-mini">
+                  <div class="event-meta">
+                    <span class="ui-badge danger">Événement</span>
+                    <span v-if="evt.horaire">🕒 {{ evt.horaire }}</span>
+                  </div>
+                  <strong>{{ evt.nom }}</strong>
+               </article>
+            </div>
+          </details>
+        </div>
+        <p v-else class="empty-msg">Aucune salle répertoriée pour ce bâtiment.</p>
+      </div>
+
+      <div v-else class="ui-card placeholder-card">
+        <strong>Sélectionnez un point</strong>
+        <p class="desc-text">Touchez un bâtiment ou un événement pour afficher les détails.</p>
+      </div>
+    </section>
+  </main>
 </template>
 
 <script setup>
 import { onMounted, ref, nextTick } from 'vue'
-import axios from 'axios'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
-// CONFIGURATION DES ICONES (Méthode CDN robuste)
-const DefaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-});
-
-// On applique cette icône par défaut à tous les futurs marqueurs
-L.Marker.prototype.options.icon = DefaultIcon;
+import axios from 'axios'
+import { useRoute } from 'vue-router'
 
 const selectedBatiment = ref(null)
+const allBatiments = ref([])
+const showBatiments = ref(true)
+const showEvenements = ref(true)
+const route = useRoute()
+
 let map = null
+let markersLayer = null
+let focusHighlightLayer = null
 
-onMounted(async () => {
-  // Initialisation de la carte centrée sur le lycée
-  map = L.map('map').setView([47.248, -1.503], 16);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
-
-  try {
+/**
+ * Fonction pour aplatir les données Strapi (gère attributes et data)
+ */
+const flattenStrapi = (item) => {
+  if (!item) return null
+  const id = item.id
+  const attributes = item.attributes || item
   
-     //const response = await axios.get('http://localhost:1337/api/batiments');
-    // On demande à Strapi d'inclure les salles, et pour chaque salle, d'inclure la matière
-// Remplace ta ligne axios.get par celle-ci :
-//const response = await axios.get('http://localhost:1337/api/batiments?populate[salles][populate]=*');
-// Dans onMounted, remplace ton axios.get par celui-ci :
-//const response = await axios.get('http://localhost:1337/api/batiments?populate=salles');
-const response = await axios.get('http://localhost:1337/api/batiments?populate[salles][populate]=evenement');
-
-    // Strapi 5 renvoie souvent les données directement dans data.data
-    const batiments = response.data.data;
-
-    if (batiments && batiments.length > 0) {
-      const markersBounds = [];
-
-      batiments.forEach(item => {
-        const b = item.attributes || item;
-        
-        // Sécurité : Conversion forcée en nombres
-        const lat = parseFloat(b.Latitude);
-        const lng = parseFloat(b.Longitude);
-
-        if (!isNaN(lat) && !isNaN(lng)) {
-          // On crée le marqueur en lui passant explicitement notre icône
-          const marker = L.marker([lat, lng], { icon: DefaultIcon }).addTo(map);
-          markersBounds.push([lat, lng]);
-
-          marker.on('click', () => {
-            selectedBatiment.value = b;
-          });
-        }
-      });
-
-      if (markersBounds.length > 0) {
-        map.fitBounds(markersBounds);
+  // Traitement récursif des relations (salles, pin_config, etc.)
+  const result = { id, ...attributes }
+  
+  if (result.salles?.data) {
+    result.salles = result.salles.data.map(s => {
+      const sData = { id: s.id, ...s.attributes }
+      if (sData.evenements?.data) {
+        sData.evenements = sData.evenements.data.map(e => ({ id: e.id, ...e.attributes }))
       }
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération des bâtiments:", error);
+      return sData
+    })
   }
   
-  // Juste après ton bloc try/catch dans onMounted
-  nextTick(() => {
-    if (map) {
-      map.invalidateSize();
+  if (result.pin_config?.data) {
+    result.pin_config = result.pin_config.data.attributes
+  }
+
+  return result
+}
+
+const refreshMarkers = () => {
+  if (!markersLayer || !map) return
+  markersLayer.clearLayers()
+
+  allBatiments.value.forEach(item => {
+    const data = flattenStrapi(item)
+    const lat = parseFloat(data.Latitude)
+    const lng = parseFloat(data.Longitude)
+    
+    if (isNaN(lat) || isNaN(lng)) return
+
+    const hasEvents = data.salles?.some(s => s.evenements && s.evenements.length > 0)
+    let finalColor = '#3498db'
+    let shouldShow = false
+
+    if (showEvenements.value && hasEvents) {
+      shouldShow = true
+      finalColor = '#e74c3c' // Rouge pour les événements
+    } else if (showBatiments.value) {
+      shouldShow = true
+      
+      // RÉPARATION DE LA COULEUR ICI
+      const rawColor = data.pin_config?.CouleurHexa
+      if (rawColor) {
+        // On vérifie si le # est présent, sinon on l'ajoute
+        finalColor = rawColor.startsWith('#') ? rawColor : `#${rawColor}`
+      } else {
+        finalColor = '#3498db'
+      }
     }
-  });
-});
+
+    if (shouldShow) {
+      L.circleMarker([lat, lng], {
+        radius: 10,
+        fillColor: finalColor,
+        color: '#fff',
+        weight: 2,
+        fillOpacity: 0.9
+      }).on('click', () => {
+        selectedBatiment.value = data
+        drawFocusHighlight(lat, lng)
+      }).addTo(markersLayer)
+    }
+  })
+
+  // Centrage automatique sur les points
+  if (markersLayer.getLayers().length > 0 && !route.query.focus) {
+    map.fitBounds(markersLayer.getBounds(), { padding: [40, 40] })
+  }
+}
+
+const drawFocusHighlight = (lat, lng) => {
+  if (focusHighlightLayer) map.removeLayer(focusHighlightLayer)
+  focusHighlightLayer = L.layerGroup([
+    L.circleMarker([lat, lng], { radius: 16, color: '#000', weight: 4, fillOpacity: 0 }),
+    L.circleMarker([lat, lng], { radius: 24, color: '#000', weight: 2, opacity: 0.4, fillOpacity: 0 })
+  ]).addTo(map)
+}
+
+onMounted(async () => {
+  await nextTick()
+  
+  // Init Leaflet
+  map = L.map('map').setView([47.247, -1.492], 17)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
+  markersLayer = L.featureGroup().addTo(map)
+
+  // Fix rendu
+  setTimeout(() => { map.invalidateSize() }, 400)
+
+  try {
+    const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1337'
+    
+    // Requête corrigée pour éviter la 400 Bad Request
+    const url = `${API}/api/batiments?populate[salles][populate]=evenements&populate[pin_config]=*`
+    const res = await axios.get(url)
+    
+    allBatiments.value = res.data.data
+    refreshMarkers()
+
+    // Focus depuis l'URL
+    if (route.query.focus) {
+      const target = allBatiments.value.find(b => String(b.id) === String(route.query.focus))
+      if (target) {
+        const d = flattenStrapi(target)
+        map.setView([d.Latitude, d.Longitude], 18)
+        selectedBatiment.value = d
+        drawFocusHighlight(d.Latitude, d.Longitude)
+      }
+    }
+  } catch (e) {
+    console.error("Erreur API :", e)
+  }
+})
 </script>
 
 <style scoped>
-.map-view {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+.hidden-input { display: none; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot-bat { background: #3498db; }
+.dot-evt { background: #e74c3c; }
+
+.filters {
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+.map-card {
+  border-radius: var(--radius-lg); /* Plus arrondi */
+  border: 2px solid white; /* Effet de bordure blanche pour faire ressortir */
+  box-shadow: var(--shadow-md);
+}
+.active-bat { border-color: #3498db; background: var(--sky-soft); }
+.active-evt { border-color: #e74c3c; background: var(--amber-soft); }
+
+.sheet { margin-top: 12px; }
+.sheet-inner { padding: 16px; }
+.sheet-head { display: flex; justify-content: space-between; gap: 12px; }
+
+.close-btn { 
+  width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; font-weight: 900;
 }
 
-.header {
-  background: #34495e;
-  color: white;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+.rooms-list { display: flex; flex-direction: column; gap: 8px; }
 
-.back-btn {
-  color: white;
-  text-decoration: none;
-  font-size: 1.5rem;
-}
+.room-summary { padding: 12px; cursor: pointer; display: flex; justify-content: space-between; list-style: none; font-weight: 800; }
+.room-summary::-webkit-details-marker { display: none; }
 
-.map-container {
-  flex: 2; /* Prend 2/3 de l'espace */
-  width: 100%;
-  z-index: 1;
-}
+.event-mini { padding: 10px; background: var(--bg); border-radius: 12px; margin-top: 8px; }
+.event-meta { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+.ui-badge.danger { background: #e74c3c; color: white; }
 
-.details-zone {
-  flex: 1; /* Prend 1/3 de l'espace */
-  background: white;
-  padding: 20px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-  overflow-y: auto;
-  border-top: 3px solid #3498db;
-  transition: all 0.3s ease;
-}
-
-.details-zone.active {
-  background-color: #f0f7ff;
-}
-
-.bat-desc { font-style: italic; color: #666; margin-bottom: 15px; }
-
-.salles-list { list-style: none; padding: 0; }
-
-.salle-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.salle-nom { font-weight: bold; color: #2c3e50; }
-
-.matiere-badge {
-  background: #3498db;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.event-box {
-  margin-top: 8px;
-  padding: 8px;
-  background-color: #fcf3cf; /* Un jaune léger pour attirer l'oeil */
-  border-left: 4px solid #f1c40f;
-  border-radius: 4px;
-}
-
-.event-badge {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  font-weight: bold;
-  color: #d4ac0d;
-}
-
-.event-title {
-  margin: 4px 0;
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.event-time {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  margin: 0;
-}
-.no-data { color: #e74c3c; font-size: 0.9rem; }
-
-h2 { color: #2c3e50; margin-top: 0; }
-.placeholder { color: #7f8c8d; font-style: italic; text-align: center; margin-top: 20px; }
+.desc-text { color: var(--text-soft); font-size: 14px; margin-top: 4px; }
+.placeholder-card { padding: 20px; text-align: center; }
+.empty-msg { color: var(--text-soft); font-size: 14px; margin-top: 8px; }
 </style>

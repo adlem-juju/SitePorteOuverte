@@ -28,6 +28,11 @@
       "relation": "oneToMany",
       "target": "api::salle.salle",
       "mappedBy": "batiment"
+    },
+    "pin_config": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::pin-config.pin-config"
     }
   }
 }

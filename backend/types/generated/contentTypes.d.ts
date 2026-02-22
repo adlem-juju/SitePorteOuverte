@@ -454,6 +454,10 @@ export interface ApiBatimentBatiment extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     Longitude: Schema.Attribute.Float;
     NomDuBatiment: Schema.Attribute.String;
+    pin_config: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::pin-config.pin-config'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     salles: Schema.Attribute.Relation<'oneToMany', 'api::salle.salle'>;
     updatedAt: Schema.Attribute.DateTime;
@@ -514,8 +518,12 @@ export interface ApiEvenementEvenement extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     nom: Schema.Attribute.String;
+    pin_config: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::pin-config.pin-config'
+    >;
     publishedAt: Schema.Attribute.DateTime;
-    salle: Schema.Attribute.Relation<'oneToOne', 'api::salle.salle'>;
+    salle: Schema.Attribute.Relation<'manyToOne', 'api::salle.salle'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -621,6 +629,64 @@ export interface ApiNomlyceeNomlycee extends Struct.SingleTypeSchema {
   };
 }
 
+export interface ApiPinColorPinColor extends Struct.SingleTypeSchema {
+  collectionName: 'pin_colors';
+  info: {
+    displayName: 'PinColor';
+    pluralName: 'pin-colors';
+    singularName: 'pin-color';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    CodeHexa: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::pin-color.pin-color'
+    > &
+      Schema.Attribute.Private;
+    Nom: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiPinConfigPinConfig extends Struct.CollectionTypeSchema {
+  collectionName: 'pin_configs';
+  info: {
+    displayName: 'PinConfig';
+    pluralName: 'pin-configs';
+    singularName: 'pin-config';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    CouleurHexa: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::pin-config.pin-config'
+    > &
+      Schema.Attribute.Private;
+    Nom: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiSalleSalle extends Struct.CollectionTypeSchema {
   collectionName: 'salles';
   info: {
@@ -637,8 +703,8 @@ export interface ApiSalleSalle extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     descriptionsalle: Schema.Attribute.RichText;
-    evenement: Schema.Attribute.Relation<
-      'oneToOne',
+    evenements: Schema.Attribute.Relation<
+      'oneToMany',
       'api::evenement.evenement'
     >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -1230,6 +1296,8 @@ declare module '@strapi/strapi' {
       'api::filiere.filiere': ApiFiliereFiliere;
       'api::matiereenseignee.matiereenseignee': ApiMatiereenseigneeMatiereenseignee;
       'api::nomlycee.nomlycee': ApiNomlyceeNomlycee;
+      'api::pin-color.pin-color': ApiPinColorPinColor;
+      'api::pin-config.pin-config': ApiPinConfigPinConfig;
       'api::salle.salle': ApiSalleSalle;
       'api::typedecours.typedecours': ApiTypedecoursTypedecours;
       'api::typedesalle.typedesalle': ApiTypedesalleTypedesalle;
