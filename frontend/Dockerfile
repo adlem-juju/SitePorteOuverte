@@ -13,4 +13,5 @@ COPY . .
 EXPOSE 5173
 
 # Lancement de Vite avec l'option --host pour être accessible hors du conteneur
-CMD ["npm", "run", "dev", "--", "--host"]
+#CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["npm","run","start"]
